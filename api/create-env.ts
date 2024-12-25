@@ -36,3 +36,42 @@ export const handler: APIGatewayProxyHandler = async (event) => {
            
            await cfnClient.send(new CreateStackCommand({
              StackName: stackName,
+             TemplateURL: 'https://s3.amazonaws.com/.../app-stack.template.json' 
+           }));
+        */
+
+        // simulating success for demonstration
+        console.log(`[simulated] creating stack: ${stackName}`);
+
+        // 2. save metadata to dynamodb
+        const item = {
+            envId,
+            stackName,
+            status: 'CREATING',
+            owner,
+            createdAt: Math.floor(now.getTime() / 1000),
+            expiresAt: expiresAt, // ttl for automatic deletion
+        };
+
+        await docClient.send(new PutCommand({
+            TableName: TABLE_NAME,
+            Item: item,
+        }));
+
+        return {
+            statusCode: 201,
+            body: JSON.stringify({
+                message: 'environment creation initiated',
+                envId,
+                stackName,
+                expiresAt: new Date(expiresAt * 1000).toISOString(),
+            }),
+        };
+    } catch (error) {
+        console.error(error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'internal server error' }),
+        };
+    }
+};

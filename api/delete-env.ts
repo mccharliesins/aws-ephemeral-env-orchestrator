@@ -26,3 +26,34 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             return { statusCode: 404, body: JSON.stringify({ message: 'environment not found' }) };
         }
         const stackName = result.Item.stackName;
+
+        // 2. trigger stack deletion
+        console.log(`[simulated] deleting stack: ${stackName}`);
+        /*
+        await cfnClient.send(new DeleteStackCommand({
+            StackName: stackName
+        }));
+        */
+
+        // 3. update status to deleted
+        // retain record temporarily for tracking
+        await docClient.send(new UpdateCommand({
+            TableName: TABLE_NAME,
+            Key: { envId },
+            UpdateExpression: 'set #s = :s',
+            ExpressionAttributeNames: { '#s': 'status' },
+            ExpressionAttributeValues: { ':s': 'DELETED' }
+        }));
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ message: 'environment deletion initiated' }),
+        };
+    } catch (error) {
+        console.error(error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'internal server error' }),
+        };
+    }
+};

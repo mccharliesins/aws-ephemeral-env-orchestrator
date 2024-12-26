@@ -31,3 +31,37 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         // 2. optional: sync with cloudformation status
         // verifies stack existence and state
         let cfnStatus = 'UNKNOWN';
+        try {
+            // commented out for simulation
+            /*
+            const cfnRes = await cfnClient.send(new DescribeStacksCommand({
+                StackName: item.stackName
+            }));
+            if (cfnRes.Stacks && cfnRes.Stacks.length > 0) {
+                cfnStatus = cfnRes.Stacks[0].StackStatus || 'UNKNOWN';
+            }
+            */
+            cfnStatus = 'CREATE_COMPLETE'; // simulated
+        } catch (e) {
+            // stack might not exist
+            cfnStatus = 'MISSING';
+        }
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                envId: item.envId,
+                status: item.status,
+                cloudFormationStatus: cfnStatus,
+                owner: item.owner,
+                expiresAt: new Date(item.expiresAt * 1000).toISOString(),
+            }),
+        };
+    } catch (error) {
+        console.error(error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'internal server error' }),
+        };
+    }
+};

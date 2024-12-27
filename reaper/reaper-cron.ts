@@ -38,3 +38,43 @@ export const handler: ScheduledHandler = async (event) => {
         }
 
         console.log(`found ${result.Items.length} expired environments. terminating...`);
+
+        // 2. terminate each one
+        const promises = result.Items.map(async (item) => {
+            const stackName = item.stackName;
+            const envId = item.envId;
+
+            console.log(`reaping environment: ${envId} (stack: ${stackName})`);
+
+            try {
+                // a. delete real infrastructure
+                /*
+                await cfnClient.send(new DeleteStackCommand({
+                    StackName: stackName
+                }));
+                */
+               console.log(`[simulated] delete stack command sent for ${stackName}`);
+
+               // b. mark as deleted in db
+               // allow dynamodb ttl to eventually remove the record
+               // mark as deleted to prevent reprocessing
+               await docClient.send(new DeleteCommand({
+                   TableName: TABLE_NAME,
+                   Key: { envId }
+               }));
+               
+               console.log(`marked ${envId} as deleted/removed from db`);
+
+            } catch (err) {
+                console.error(`failed to reap ${envId}`, err);
+            }
+        });
+
+        await Promise.all(promises);
+        console.log('reaper execution finished');
+
+    } catch (error) {
+        console.error('reaper failed', error);
+        throw error;
+    }
+};

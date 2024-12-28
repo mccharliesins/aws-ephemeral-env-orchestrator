@@ -55,3 +55,59 @@ export class OrchestratorStack extends cdk.Stack {
         const deleteEnvLambda = new nodejs.NodejsFunction(this, 'DeleteEnvFunction', {
             entry: path.join(__dirname, '..', 'api', 'delete-env.ts'),
             handler: 'handler',
+            ...nodeJsFunctionProps,
+        });
+
+        // reaper-cron: runs hourly. scans db for expired envs -> triggers delete
+        const reaperLambda = new nodejs.NodejsFunction(this, 'ReaperFunction', {
+            entry: path.join(__dirname, '..', 'reaper', 'reaper-cron.ts'),
+            handler: 'handler',
+            ...nodeJsFunctionProps,
+        });
+
+        // 3. permissions
+        // grant dynamodb access
+        table.grantWriteData(createEnvLambda);
+        table.grantReadData(getStatusLambda);
+        table.grantWriteData(deleteEnvLambda); // needs to update status
+        table.grantReadWriteData(reaperLambda); // needs to scan and delete
+
+        // grant cloudformation access to create/delete stacks
+        // note: scope down permissions in production
+        const cfnPolicy = new iam.PolicyStatement({
+            actions: [
+                'cloudformation:CreateStack',
+                'cloudformation:DeleteStack',
+                'cloudformation:DescribeStacks',
+                'cloudformation:GetTemplate',
+            ],
+            resources: ['*'],
+        });
+
+        createEnvLambda.addToRolePolicy(cfnPolicy);
+        getStatusLambda.addToRolePolicy(cfnPolicy);
+        deleteEnvLambda.addToRolePolicy(cfnPolicy);
+        reaperLambda.addToRolePolicy(cfnPolicy);
+
+        // 4. api gateway
+        // entry point to request an environment
+        const api = new apigateway.RestApi(this, 'EphemeralEnvApi', {
+            restApiName: 'Ephemeral Environment Manager Service',
+            description: 'Allocates and destroys ephemeral environments.',
+        });
+
+        const envs = api.root.addResource('env');
+        envs.addMethod('POST', new apigateway.LambdaIntegration(createEnvLambda)); // POST /env
+
+        const singleEnv = envs.addResource('{id}');
+        singleEnv.addMethod('GET', new apigateway.LambdaIntegration(getStatusLambda)); // GET /env/:id
+        singleEnv.addMethod('DELETE', new apigateway.LambdaIntegration(deleteEnvLambda)); // DELETE /env/:id
+
+        // 5. scheduled task (reaper)
+        // run every hour to clean up zombies
+        const rule = new events.Rule(this, 'ReaperRule', {
+            schedule: events.Schedule.rate(cdk.Duration.hours(1)),
+        });
+        rule.addTarget(new targets.LambdaFunction(reaperLambda));
+    }
+}

@@ -90,4 +90,4 @@ sequenceDiagram
     ```
 
 This will output the API Gateway URL which you can use to start managing environments.
-<!-- update 6 -->
+<!-- update 9 -->

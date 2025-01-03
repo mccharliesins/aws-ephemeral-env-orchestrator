@@ -26,4 +26,4 @@
     "@aws-sdk/lib-dynamodb": "^3.474.0",
     "aws-lambda": "^1.0.7"
   }
-} 
+}

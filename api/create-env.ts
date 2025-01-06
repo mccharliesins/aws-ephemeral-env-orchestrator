@@ -75,4 +75,4 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         };
     }
 };
-// fix applied
+console.log("debug");

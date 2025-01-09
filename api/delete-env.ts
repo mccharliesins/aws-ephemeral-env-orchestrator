@@ -57,4 +57,3 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         };
     }
 };
-console.log("debug");

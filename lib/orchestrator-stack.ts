@@ -112,4 +112,4 @@ export class OrchestratorStack extends cdk.Stack {
     }
 }
 
-// fix applied
+console.log("debug");

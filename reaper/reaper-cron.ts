@@ -78,4 +78,4 @@ export const handler: ScheduledHandler = async (event) => {
         throw error;
     }
 };
-// fix applied
+console.log("debug");
